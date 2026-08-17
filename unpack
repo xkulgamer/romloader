@@ -1,0 +1,24 @@
+#/bin/bash
+
+if [ $# -eq 0 ]; then
+echo usage: $0 boot.img
+exit 1
+fi
+# this is just a wrapper for abootimg
+mkdir -p ~/.romparts
+
+check_abootimg()
+{
+which abootimg > /dev/null 2>&1 
+if [ $? = 1 ]; then
+apt install abootimg
+else
+echo abootimg found, continuing
+fi
+}
+check_abootimg
+abootimg -x $1 > /dev/null 2>&1
+mv initrd.img ~/.romparts/ramdisk
+rm zImage
+rm bootimg.cfg
+echo done

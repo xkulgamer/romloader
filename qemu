@@ -1,0 +1,72 @@
+#!/bin/bash
+check_files() {
+  ls ~/.romparts/kernel >/dev/null 2>&1
+  if [ "$?" = '2' ]; then
+    echo "kernel not found, please use the addkernel function"
+    exit 1
+  fi
+  ls ~/.romparts/system.img >/dev/null 2>&1
+  if [ "$?" = '2' ]; then
+    echo "system.img not found, please flash it using the flash tool"
+    exit 1
+  fi
+  ls ~/.romparts/userdata.img >/dev/null 2>&1
+  if [ "$?" = '2' ]; then
+    echo "userdata not found, please create it using the flash tool"
+    exit 1
+  fi
+  ls ~/.romparts/ramdisk >/dev/null 2>&1
+  if [ "$?" = '2' ]; then
+    echo "ramdisk is not found, please get it using the unpack tool"
+    exit 1
+  fi
+}
+check_qemu() {
+  which qemu-system-aarch64 >/dev/null 2>&1
+  if [ "$?" = '1' ]; then
+    echo "qemu-system-aarch64 not found, installing..."
+    apt install qemu-system-aarch64
+  fi
+}
+
+config() {
+  mkdir -p ~/.romparts/config
+  # template
+  printf '%s' "qemu-system-aarch64 -M virt -cpu max -device virtio-gpu-pci  -kernel "$HOME/.romparts/kernel" -initrd "$HOME/.romparts/ramdisk" -drive if=none,file="$HOME/.romparts/system.img",format=raw,id=system -device virtio-blk-pci,drive=system -drive if=none,file="$HOME/.romparts/userdata.img",format=raw,id=userdata -device virtio-blk-pci,drive=userdata -append "console=ttyAMA0"  -serial tcp:0.0.0.0:5555,server=on,wait=off " > "$HOME/.romparts/config/command"
+  if [ "$2" = "ram" ]; then
+    printf '%s' "$3" >"$HOME/.romparts/config/mem.txt"
+    RAM=$(cat "$HOME/.romparts/config/mem.txt")
+    printf '%s' " -m $RAM " >>"$HOME/.romparts/config/command"
+  fi
+  ls ~/.romparts/vendor.img >/dev/null 2>&1
+  if [ "$?" = '0' ]; then
+    printf '%s' " -drive if=none,file=$HOME/.romparts/vendor.img,format=raw,id=vendor -device virtio-blk-pci,drive=vendor " >>"$HOME/.romparts/config/command"
+  fi
+}
+addkernel() {
+  cp "$2" ~/.romparts/kernel
+}
+main() {
+  if [ "$1" = "config" ]; then
+    config "$@"
+  fi
+  if [ "$1" = "start" ]; then
+    check_files
+    command=$(cat "$HOME/.romparts/config/command")
+    bash -c "$command" &
+  fi
+  if [ "$1" = "addkernel" ]; then
+    addkernel "$@"
+  fi
+  if [ "$1" = "serial" ]; then
+    nc localhost 5555
+  fi
+  if [ "$1" = "stop" ]; then
+    killall qemu-system-aarch64
+  fi
+  if [ "$1" != "config" ] && [ "$1" != "start" ] && [ "$1" != "addkernel" ] && [ "$1" != "serial" ] && [ "$1" != "stop" ]; then
+    echo "$0 addkernel/config/start/serial/stop kernel/ram (size)"
+  fi
+}
+check_qemu
+main "$@"

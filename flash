@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# romloader flasher
+check_file()
+{
+ls "$2" > /dev/null 2>&1
+if [ "$?" = '2' ]; then
+echo "file not found, check your typing"
+exit 1
+fi
+if [ -d "$2" ]; then
+echo "is a directory, incompatible with romloader flasher"
+exit 1
+fi
+}
+boot()
+{
+./unpack "$2"
+}
+
+system()
+{
+cp "$2" ~/.romparts/system.img
+}
+
+vendor()
+{
+cp "$2" ~/.romparts/vendor.img
+}
+userdata()
+{
+qemu-img create ~/.romparts/userdata.img "$2"
+}
+main()
+{
+# simple argument parser
+if [ -z "$1" ]; then
+echo "usage: $0 [boot/system/vendor/userdata] file/size"
+exit 1
+fi
+if [ "$1" != "boot" ] && [ "$1" != "system" ] && [ "$1" != "vendor" ] && [ "$1" != "userdata" ]; then
+echo "usage: $0 [boot/system/vendor/userdata] file/size"
+fi
+if [ "$1" = "boot" ]; then
+check_file "$@"
+boot "$@"
+fi
+if [ "$1" = "system" ]; then
+check_file "$@"
+system "$@"
+fi
+if [ "$1" = "vendor" ]; then
+check_file "$@"
+vendor "$@"
+fi
+if [ "$1" = "userdata" ]; then
+userdata "$@"
+fi
+}
+main "$@" 
